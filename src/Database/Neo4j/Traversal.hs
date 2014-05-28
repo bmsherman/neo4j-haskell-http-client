@@ -90,8 +90,10 @@ instance ToJSON TraversalReturnFilter where
 data TraversalPruneEvaluator = PruneEvaluator String | NoEvaluator deriving (Eq)
 
 instance ToJSON TraversalPruneEvaluator where
-    toJSON _ = object
+    toJSON NoEvaluator = object
         [fromString "name" .= "none", fromString "language" .= BuiltIn]
+    toJSON (PruneEvaluator str) = object
+        [fromString "body" .= str, fromString "language" .= "javascript"]
 
 data PathWithURIs = PathWithURIs {
     puStart :: URI,

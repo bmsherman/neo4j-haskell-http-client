@@ -34,7 +34,10 @@ getRelationshipFromHTTPResult client result = case result of
                 (show response))
     Left err -> return $ Left $ show err
 
-data RelationshipRetrievalType = RetrieveAll | RetrieveIncoming | RetrieveOutgoing | RetrieveTyped String deriving (Eq)
+data RelationshipRetrievalType = Retrieve RelationshipDirection RelationshipRType deriving (Eq)
+
+data RelationshipDirection = Incoming | Outgoing | BothDirections deriving Eq
+data RelationshipRType = AnyType | RelType String deriving Eq
 
 -- | Create a relationship between two nodes. You must specify a name/relationship type
 createRelationship :: Client -> Node -> Node -> String -> Properties -> IO (Either String Relationship)
@@ -97,13 +100,7 @@ mkRelationshipFromAttributes client (self, start, end, name, props) = do
 
 -- | Get all the relationships of a given type for a node.
 getRelationships :: Client -> RelationshipRetrievalType -> Node -> IO (Either String [Relationship])
-getRelationships client rrType (Node nodeURI _) = do
-    let uri = nodeURI `appendToPath` "relationships" `appendToPath`
-            case rrType of
-                RetrieveAll ->  "all"
-                RetrieveIncoming -> "in"
-                RetrieveOutgoing -> "out"
-                RetrieveTyped relType -> "all/" ++ relType
+getRelationships client (Retrieve direction reltype) (Node nodeURI _) = do       
     result <- simpleHTTP $ mkRequest GET uri
     let relationshipResult = case result of
             Right response -> case rspCode response of
@@ -123,7 +120,14 @@ getRelationships client rrType (Node nodeURI _) = do
             printf "Couldn't extract data from relationship response %s" $
                     show relationshipResult
         Left err -> return $ Left $ show err
+    where
+    uri = f reltype (nodeURI `appendToPath` "relationships" `appendToPath` (dir direction))
+    dir Incoming = "in"
+    dir Outgoing = "out"
+    dir BothDirections = "all"
+    f AnyType = id
+    f (RelType str) = (`appendToPath` str)
 
-incomingRelationships client = getRelationships client RetrieveIncoming
-outgoingRelationships client = getRelationships client RetrieveOutgoing
-allRelationships client = getRelationships client RetrieveAll
+incomingRelationships client = getRelationships client (Retrieve Incoming AnyType)
+outgoingRelationships client = getRelationships client (Retrieve Outgoing AnyType)
+allRelationships client = getRelationships client (Retrieve BothDirections AnyType)

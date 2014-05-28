@@ -34,6 +34,7 @@ module Database.Neo4j (
     -- * Data Types
     Properties, RelationshipType, IndexName, RelationshipRetrievalType(..),
     NodeID,
+    RelationshipRType (..), RelationshipDirection (..),
     -- * Traversals
     TraversalOption, TraversalOptions, TraversalReturnType(..),
     TraversalOrder(..), TraverseRelationships(..), TraverseRelationship(..),
@@ -45,8 +46,6 @@ module Database.Neo4j (
     relationships, defaultBFSOptions
     ) where
 
--- module Database.Neo4j where
-
 import Control.Monad
 import Text.Printf
 import qualified Data.HashMap.Lazy as Map
@@ -54,7 +53,6 @@ import qualified Data.Vector as V
 import Data.Either.Unwrap
 import Data.Aeson
 import Data.Aeson.Parser
-import Data.Attoparsec.Number (Number (I))
 import qualified Data.Attoparsec as Attoparsec
 import Database.Neo4j.Node
 import Database.Neo4j.Relationship
@@ -74,9 +72,9 @@ import Debug.Trace
 import Data.Maybe
 
 -- | Get relationships of a specified type
-typedRelationships :: Client -> RelationshipType -> Node -> IO (Either String [Relationship])
+typedRelationships :: Client -> RelationshipRType -> Node -> IO (Either String [Relationship])
 typedRelationships client relType =
-    getRelationships client (RetrieveTyped relType)
+    getRelationships client (Retrieve BothDirections relType)
 
 createNodeIndex :: Client -> IndexName -> IO (Either String ())
 createNodeIndex client indexName = do
@@ -133,7 +131,7 @@ indexNode client indexName node@(Node nodeURI _) key value =
     where
         valueAsString = case value of
             String text     -> Just $ Text.unpack text
-            Number (I int)  -> Just $ show int
+            Number i        -> Just $ show i
             _               -> Nothing
 
 -- | The new way in > 1.5 MILESTONE (https://github.com/neo4j/community/issues/25;cid=1317413794432-668)
